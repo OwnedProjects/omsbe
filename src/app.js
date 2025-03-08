@@ -7,6 +7,7 @@ const orderRoutes = require("./routes/orders/orderRoutes");
 const path = require("path");
 
 const app = express();
+
 // Body parsing middleware (place this before routes)
 app.use(cors());
 app.use(bodyParser.json());
@@ -17,4 +18,4 @@ app.use("/api/inventory", categoryRoutes);
 app.use("/api/orders", orderRoutes);
 app.use("/api/files", express.static(path.join(__dirname, "..", "public")));
 
-module.exports = app;
+module.exports = { app };

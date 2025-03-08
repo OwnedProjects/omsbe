@@ -1,5 +1,10 @@
 const express = require("express");
-const { createOrder } = require("../../controllers/orders/orderController");
+const {
+  createOrder,
+  getPendingOrders,
+  markOrderAsDone,
+} = require("../../controllers/orders/orderController");
+
 const router = express.Router();
 
 router.post("/createorder", async (req, res) => {
@@ -13,9 +18,38 @@ router.post("/createorder", async (req, res) => {
     }
 
     const result = await createOrder(cartItems, userid);
+
+    // Emit WebSocket event for new orders (if using WebSockets)
+    if (req.app.get("io")) {
+      req.app.get("io").emit("newOrder", result);
+    }
+
     return res.json(result);
   } catch (err) {
     return res.status(500).json({ error: err.message });
+  }
+});
+
+// New endpoint to fetch pending orders
+router.get("/pendingorders", async (req, res) => {
+  try {
+    const orders = await getPendingOrders();
+    return res.json(orders);
+  } catch (err) {
+    return res.status(500).json({ error: err.message });
+  }
+});
+
+router.put("/:orderId/done", async (req, res) => {
+  console.log("Received request:", req.params.orderId);
+
+  const { orderId } = req.params;
+
+  try {
+    const result = await markOrderAsDone(orderId);
+    res.status(200).json(result);
+  } catch (error) {
+    res.status(error.code || 500).json(error);
   }
 });
 
