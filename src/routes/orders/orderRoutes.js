@@ -3,6 +3,8 @@ const {
   createOrder,
   getPendingOrders,
   markOrderAsDone,
+  getDoneOrders,
+  markOrderAsClose,
 } = require("../../controllers/orders/orderController");
 
 const router = express.Router();
@@ -40,16 +42,53 @@ router.get("/pendingorders", async (req, res) => {
   }
 });
 
-router.put("/:orderId/done", async (req, res) => {
-  console.log("Received request:", req.params.orderId);
+// New endpoint to fetch pending orders
+router.get("/doneorders", async (req, res) => {
+  try {
+    const orders = await getDoneOrders();
+    return res.json(orders);
+  } catch (err) {
+    return res.status(500).json({ error: err.message });
+  }
+});
 
+router.put("/:orderId/done", async (req, res) => {
   const { orderId } = req.params;
 
   try {
     const result = await markOrderAsDone(orderId);
+
+    // Emit WebSocket event for DONE orders (if using WebSockets)
+    if (req.app.get("io")) {
+      req.app.get("io").emit("doneOrders", result);
+    }
+
     res.status(200).json(result);
   } catch (error) {
     res.status(error.code || 500).json(error);
+  }
+});
+
+router.put("/:orderId/close", async (req, res) => {
+  const { orderId } = req.params;
+
+  try {
+    const result = await markOrderAsClose(orderId);
+
+    // ✅ Emit WebSocket event with order_no
+    if (req.app.get("io")) {
+      req.app.get("io").emit("doneOrders", {
+        order_id: orderId,
+        order_no: result.order_no, // ✅ Now sending order_no
+        status: "completed",
+      });
+    }
+
+    res.status(200).json(result);
+  } catch (error) {
+    res
+      .status(error.code && Number.isInteger(error.code) ? error.code : 500)
+      .json(error);
   }
 });
 
